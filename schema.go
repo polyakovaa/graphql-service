@@ -2,7 +2,6 @@ package main
 
 import (
 	"grphqlserver/resolvers"
-	_ "grphqlserver/resolvers"
 
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/graphql/language/ast"
@@ -131,15 +130,18 @@ func defineSchema() graphql.SchemaConfig {
 					Type:    graphql.NewList(Book),
 					Resolve: resolvers.BookResolver,
 				},
-				"searchBooks": &graphql.Field{
-					Name: "searchBooks",
+				"findBooks": &graphql.Field{
+					Name: "findBooks",
 					Type: graphql.NewList(Book),
 					Args: graphql.FieldConfigArgument{
 						"title": &graphql.ArgumentConfig{
 							Type: graphql.String,
 						},
+						"author": &graphql.ArgumentConfig{
+							Type: graphql.String,
+						},
 					},
-					Resolve: resolvers.SearchBookResolver,
+					Resolve: resolvers.FindBooksResolver,
 				},
 			},
 		}),

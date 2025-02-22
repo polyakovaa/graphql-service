@@ -120,3 +120,39 @@ func DeleteBookResolver(p graphql.ResolveParams) (interface{}, error) {
 		"message": "Book deleted successfully",
 	}, nil
 }
+
+func FindBooksResolver(p graphql.ResolveParams) (interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	collection := BooksCollection()
+	title, titleOK := p.Args["title"].(string)
+	author, authorOK := p.Args["author"].(string)
+
+	filter := bson.M{}
+	if titleOK && title != "" {
+		filter["title"] = bson.M{"$regex": primitive.Regex{Pattern: title, Options: "i"}}
+	}
+	if authorOK && author != "" {
+		filter["author"] = bson.M{"$regex": primitive.Regex{Pattern: author, Options: "i"}}
+	}
+
+	cursor, err := collection.Find(ctx, filter, options.Find())
+	if err != nil {
+		log.Println("Error finding books ", err)
+		return nil, err
+	}
+	defer cursor.Close(ctx)
+
+	var books []bson.M
+	if err = cursor.All(ctx, &books); err != nil {
+		log.Println("Error reading books from cursor: ", err)
+		return nil, err
+	}
+
+	if len(books) == 0 {
+		return nil, errors.New("books not found")
+	}
+
+	return books, nil
+}
