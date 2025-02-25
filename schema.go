@@ -115,6 +115,44 @@ var BookInput = graphql.NewInputObject(
 	},
 )
 
+var Review = graphql.NewObject(
+	graphql.ObjectConfig{
+		Name: "Review",
+		Fields: graphql.Fields{
+			"_id": &graphql.Field{
+				Type: ObjectID,
+			},
+			"bookID": &graphql.Field{
+				Type: ObjectID,
+			},
+			"userID": &graphql.Field{
+				Type: ObjectID,
+			},
+			"rating": &graphql.Field{
+				Type: graphql.Int,
+			},
+			"comment": &graphql.Field{
+				Type: graphql.String,
+			},
+			"date": &graphql.Field{
+				Type: graphql.DateTime,
+			},
+		},
+	},
+)
+
+var ReviewInput = graphql.NewInputObject(
+	graphql.InputObjectConfig{
+		Name: "ReviewInput",
+		Fields: graphql.InputObjectConfigFieldMap{
+			"bookID":  &graphql.InputObjectFieldConfig{Type: ObjectID},
+			"userID":  &graphql.InputObjectFieldConfig{Type: ObjectID},
+			"rating":  &graphql.InputObjectFieldConfig{Type: graphql.String},
+			"comment": &graphql.InputObjectFieldConfig{Type: graphql.String},
+		},
+	},
+)
+
 func defineSchema() graphql.SchemaConfig {
 	return graphql.SchemaConfig{
 		Query: graphql.NewObject(graphql.ObjectConfig{
@@ -142,6 +180,16 @@ func defineSchema() graphql.SchemaConfig {
 						},
 					},
 					Resolve: resolvers.FindBooksResolver,
+				},
+				"findReviews": &graphql.Field{
+					Name: "findReviews",
+					Type: graphql.NewList(Review),
+					Args: graphql.FieldConfigArgument{
+						"bookID": &graphql.ArgumentConfig{
+							Type: graphql.NewNonNull(ObjectID),
+						},
+					},
+					Resolve: resolvers.FindReviewsResolver,
 				},
 			},
 		}),
@@ -190,6 +238,40 @@ func defineSchema() graphql.SchemaConfig {
 						},
 					},
 					Resolve: resolvers.DeleteBookResolver,
+				},
+				"addReview": &graphql.Field{
+					Name: "addReview",
+					Type: Review,
+					Args: graphql.FieldConfigArgument{
+						"input": &graphql.ArgumentConfig{
+							Type: ReviewInput,
+						},
+					},
+					Resolve: resolvers.AddReviewResolver,
+				},
+				"updateReview": &graphql.Field{
+					Name: "updateReview",
+					Type: Review,
+					Args: graphql.FieldConfigArgument{
+						"reviewID": &graphql.ArgumentConfig{
+							Type: graphql.NewNonNull(ObjectID),
+						},
+						"input": &graphql.ArgumentConfig{
+							Type: ReviewInput,
+						},
+					},
+					Resolve: resolvers.UpdateReviewResolver,
+				},
+
+				"deleteReview": &graphql.Field{
+					Name: "deleteReview",
+					Type: graphql.Boolean,
+					Args: graphql.FieldConfigArgument{
+						"reviewID": &graphql.ArgumentConfig{
+							Type: graphql.NewNonNull(ObjectID),
+						},
+					},
+					Resolve: resolvers.DeleteReviewResolver,
 				},
 			},
 		}),
