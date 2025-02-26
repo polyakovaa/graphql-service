@@ -227,7 +227,7 @@ func defineSchema() graphql.SchemaConfig {
 							Type: BookInput,
 						},
 					},
-					Resolve: resolvers.UpdateBookResover,
+					Resolve: resolvers.UpdateBookResolver,
 				},
 				"deleteBook": &graphql.Field{
 					Name: "deleteBook",

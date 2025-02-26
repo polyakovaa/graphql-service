@@ -66,32 +66,35 @@ func AddBookResolver(p graphql.ResolveParams) (interface{}, error) {
 	return result, nil
 }
 
-func UpdateBookResover(p graphql.ResolveParams) (interface{}, error) {
+func UpdateBookResolver(p graphql.ResolveParams) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	collection := BooksCollection()
+
 	id, ok := p.Args["_id"].(primitive.ObjectID)
 	if !ok {
-		return nil, errors.New("invalid book ID")
+		return nil, errors.New("missing or invalid book ID")
 	}
 
 	input, ok := p.Args["input"].(map[string]interface{})
 	if !ok {
-		return nil, errors.New("invalide input data")
+		return nil, errors.New("invalid input data")
 	}
+
 	update := bson.M{"$set": input}
 	_, err := collection.UpdateOne(ctx, bson.M{"_id": id}, update)
 	if err != nil {
 		log.Print("Error updating book:", err)
 		return nil, err
 	}
+
 	var updatedBook bson.M
 	err = collection.FindOne(ctx, bson.M{"_id": id}).Decode(&updatedBook)
-
 	if err != nil {
-		log.Print("Error reteieving updated book:", err)
+		log.Print("Error retrieving updated book:", err)
 		return nil, err
 	}
+
 	return updatedBook, nil
 }
 
@@ -102,7 +105,7 @@ func DeleteBookResolver(p graphql.ResolveParams) (interface{}, error) {
 
 	id, ok := p.Args["_id"].(primitive.ObjectID)
 	if !ok {
-		return nil, errors.New("invalid book ID")
+		return nil, errors.New("missing book ID")
 	}
 
 	res, err := collection.DeleteOne(ctx, bson.M{"_id": id})
@@ -112,13 +115,10 @@ func DeleteBookResolver(p graphql.ResolveParams) (interface{}, error) {
 	}
 
 	if res.DeletedCount == 0 {
-		return false, nil
+		return nil, errors.New("book not found")
 	}
 
-	return map[string]interface{}{
-		"success": true,
-		"message": "Book deleted successfully",
-	}, nil
+	return true, nil
 }
 
 func FindBooksResolver(p graphql.ResolveParams) (interface{}, error) {
