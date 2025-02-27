@@ -147,8 +147,9 @@ var ReviewInput = graphql.NewInputObject(
 		Fields: graphql.InputObjectConfigFieldMap{
 			"bookID":  &graphql.InputObjectFieldConfig{Type: ObjectID},
 			"userID":  &graphql.InputObjectFieldConfig{Type: ObjectID},
-			"rating":  &graphql.InputObjectFieldConfig{Type: graphql.String},
+			"rating":  &graphql.InputObjectFieldConfig{Type: graphql.Int},
 			"comment": &graphql.InputObjectFieldConfig{Type: graphql.String},
+			"date":    &graphql.InputObjectFieldConfig{Type: graphql.DateTime},
 		},
 	},
 )
@@ -186,7 +187,13 @@ func defineSchema() graphql.SchemaConfig {
 					Type: graphql.NewList(Review),
 					Args: graphql.FieldConfigArgument{
 						"bookID": &graphql.ArgumentConfig{
-							Type: graphql.NewNonNull(ObjectID),
+							Type: ObjectID,
+						},
+						"title": &graphql.ArgumentConfig{
+							Type: graphql.String,
+						},
+						"author": &graphql.ArgumentConfig{
+							Type: graphql.String,
 						},
 					},
 					Resolve: resolvers.FindReviewsResolver,
@@ -253,8 +260,8 @@ func defineSchema() graphql.SchemaConfig {
 					Name: "updateReview",
 					Type: Review,
 					Args: graphql.FieldConfigArgument{
-						"reviewID": &graphql.ArgumentConfig{
-							Type: graphql.NewNonNull(ObjectID),
+						"_id": &graphql.ArgumentConfig{
+							Type: ObjectID,
 						},
 						"input": &graphql.ArgumentConfig{
 							Type: ReviewInput,
@@ -267,8 +274,8 @@ func defineSchema() graphql.SchemaConfig {
 					Name: "deleteReview",
 					Type: graphql.Boolean,
 					Args: graphql.FieldConfigArgument{
-						"reviewID": &graphql.ArgumentConfig{
-							Type: graphql.NewNonNull(ObjectID),
+						"_id": &graphql.ArgumentConfig{
+							Type: ObjectID,
 						},
 					},
 					Resolve: resolvers.DeleteReviewResolver,
