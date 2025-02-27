@@ -56,8 +56,8 @@ func AddReviewResolver(p graphql.ResolveParams) (interface{}, error) {
 		return nil, errors.New("invalid input data")
 	}
 
-	if _, exists := input["createdAt"]; !exists {
-		input["createdAt"] = time.Now()
+	if _, exists := input["date"]; !exists {
+		input["date"] = time.Now()
 	}
 
 	res, err := collection.InsertOne(ctx, input)
@@ -130,7 +130,7 @@ func UpdateReviewResolver(p graphql.ResolveParams) (interface{}, error) {
 
 }
 
-//TODO исправить чтоб не искало все рецензии по bookid. во-вторых все еще не добавляет дату
+//TODO исправить чтоб не искало все рецензии по bookid.
 
 func FindReviewsResolver(p graphql.ResolveParams) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
