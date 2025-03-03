@@ -130,20 +130,14 @@ func UpdateReviewResolver(p graphql.ResolveParams) (interface{}, error) {
 
 }
 
-//TODO исправить чтоб не искало все рецензии по bookid.
-
 func FindReviewsResolver(p graphql.ResolveParams) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	collection := ReviewCollection()
 	filter := bson.M{}
 
-	if bookID, ok := p.Args["bookID"].(string); ok && bookID != "" {
-		objID, err := primitive.ObjectIDFromHex(bookID)
-		if err != nil {
-			return nil, errors.New("invalid bookID format")
-		}
-		filter["bookID"] = objID
+	if bookID, ok := p.Args["bookID"].(primitive.ObjectID); ok {
+		filter["bookID"] = bookID
 	}
 
 	var bookFilter bson.M
@@ -182,6 +176,7 @@ func FindReviewsResolver(p graphql.ResolveParams) (interface{}, error) {
 		for _, book := range books {
 			if id, ok := book["_id"].(primitive.ObjectID); ok {
 				bookIDs = append(bookIDs, id)
+
 			}
 		}
 
@@ -199,6 +194,16 @@ func FindReviewsResolver(p graphql.ResolveParams) (interface{}, error) {
 	if err = cursor.All(ctx, &reviews); err != nil {
 		log.Println("Error reading reviews from cursor:", err)
 		return nil, err
+	}
+
+	for i, review := range reviews {
+		if date, ok := review["date"]; ok {
+			if dt, isDate := date.(primitive.DateTime); isDate {
+				reviews[i]["date"] = dt.Time()
+			} else {
+				log.Printf("Review %d has an invalid date format: %T\n", i, date)
+			}
+		}
 	}
 
 	if len(reviews) == 0 {
