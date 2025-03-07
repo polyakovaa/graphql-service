@@ -2,11 +2,14 @@ package resolvers
 
 import (
 	"context"
+	"errors"
+	"grphqlserver/auth"
 	"log"
 	"time"
 
 	"github.com/graphql-go/graphql"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -44,22 +47,63 @@ func UserResolver(_ graphql.ResolveParams) (interface{}, error) {
 	return r, nil
 }
 
-func AddUserResolver(p graphql.ResolveParams) (interface{}, error) {
+func UserRegisterResolver(p graphql.ResolveParams) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	collection := UsersCollection()
-	id, err := collection.InsertOne(ctx, p.Args["input"])
+
+	username := p.Args["username"].(string)
+	password := p.Args["password"].(string)
+
+	var existingUser bson.M
+	err := collection.FindOne(ctx, bson.M{"username": username}).Decode(&existingUser)
+	if err == nil {
+		return nil, errors.New("user already exists")
+	}
+
+	hashedPassword, err := auth.HashPassword(password)
 	if err != nil {
-		log.Print("Error in inserting user", err)
 		return nil, err
 	}
 
-	var result bson.M
-	err = collection.FindOne(ctx, bson.M{"_id": id.InsertedID}).Decode(&result)
+	res, err := collection.InsertOne(ctx, bson.M{
+		"username": username,
+		"password": hashedPassword,
+	})
 	if err != nil {
-		log.Print("Error in finding the inserted user by id", err)
+		return nil, err
+	}
+	token, err := auth.GenerateToken(res.InsertedID.(primitive.ObjectID).Hex())
+	if err != nil {
 		return nil, err
 	}
 
-	return result, nil
+	return bson.M{"token": token}, nil
+
+}
+
+func LoginUserResolver(p graphql.ResolveParams) (interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	collection := UsersCollection()
+
+	username := p.Args["username"].(string)
+	password := p.Args["password"].(string)
+
+	var user bson.M
+	err := collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
+	if err != nil {
+		return nil, errors.New("invalid username or password")
+	}
+
+	if !auth.CheckPassword(password, user["password"].(string)) {
+		return nil, errors.New("invalid username or password")
+	}
+
+	token, err := auth.GenerateToken(user["_id"].(primitive.ObjectID).Hex())
+	if err != nil {
+		return nil, err
+	}
+
+	return bson.M{"token": token}, nil
 }
