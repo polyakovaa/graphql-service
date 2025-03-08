@@ -22,6 +22,7 @@ func main() {
 	})
 
 	http.Handle("/graphql", h)
+
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {
 		log.Panic("Error when starting the http server", err)

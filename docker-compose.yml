@@ -1,6 +1,8 @@
 services:
   graphql:
     image: golang
+    environment:
+      - JWT_SECRET=supersecretkey
     volumes:
       - .:/go/src
     command: /bin/bash -c "cd src && go run *.go"

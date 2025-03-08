@@ -12,6 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func UsersCollection() *mongo.Collection {
@@ -47,39 +48,50 @@ func UserResolver(_ graphql.ResolveParams) (interface{}, error) {
 	return r, nil
 }
 
-func UserRegisterResolver(p graphql.ResolveParams) (interface{}, error) {
+func RegisterUserResolver(p graphql.ResolveParams) (interface{}, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	collection := UsersCollection()
 
-	username := p.Args["username"].(string)
-	password := p.Args["password"].(string)
+	input, _ := p.Args["input"].(map[string]interface{})
+	username, _ := input["userName"].(string)
+	password, _ := input["password"].(string)
+	email, _ := input["email"].(string)
+
+	if username == "" {
+		return nil, errors.New("username cannot be empty")
+	}
 
 	var existingUser bson.M
-	err := collection.FindOne(ctx, bson.M{"username": username}).Decode(&existingUser)
+	err := collection.FindOne(ctx, bson.M{"userName": username}).Decode(&existingUser)
 	if err == nil {
-		return nil, errors.New("user already exists")
+		return nil, errors.New("username already exists")
+	} else if err != mongo.ErrNoDocuments {
+		return nil, err
 	}
 
-	hashedPassword, err := auth.HashPassword(password)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := collection.InsertOne(ctx, bson.M{
-		"username": username,
-		"password": hashedPassword,
-	})
-	if err != nil {
-		return nil, err
+	newUser := bson.M{
+		"userName": username,
+		"password": string(hashedPassword),
+		"email":    email,
 	}
-	token, err := auth.GenerateToken(res.InsertedID.(primitive.ObjectID).Hex())
+
+	id, err := collection.InsertOne(ctx, newUser)
 	if err != nil {
 		return nil, err
 	}
 
-	return bson.M{"token": token}, nil
+	token, err := auth.GenerateToken(id.InsertedID.(primitive.ObjectID).Hex())
+	if err != nil {
+		return nil, err
+	}
 
+	return token, nil
 }
 
 func LoginUserResolver(p graphql.ResolveParams) (interface{}, error) {
@@ -87,17 +99,19 @@ func LoginUserResolver(p graphql.ResolveParams) (interface{}, error) {
 	defer cancel()
 	collection := UsersCollection()
 
-	username := p.Args["username"].(string)
-	password := p.Args["password"].(string)
+	input, _ := p.Args["input"].(map[string]interface{})
+	username, _ := input["userName"].(string)
+	password, _ := input["password"].(string)
 
 	var user bson.M
-	err := collection.FindOne(ctx, bson.M{"username": username}).Decode(&user)
+	err := collection.FindOne(ctx, bson.M{"userName": username}).Decode(&user)
 	if err != nil {
-		return nil, errors.New("invalid username or password")
+		return nil, errors.New("user not found")
 	}
 
-	if !auth.CheckPassword(password, user["password"].(string)) {
-		return nil, errors.New("invalid username or password")
+	err = bcrypt.CompareHashAndPassword([]byte(user["password"].(string)), []byte(password))
+	if err != nil {
+		return nil, errors.New("invalid password")
 	}
 
 	token, err := auth.GenerateToken(user["_id"].(primitive.ObjectID).Hex())
@@ -105,5 +119,5 @@ func LoginUserResolver(p graphql.ResolveParams) (interface{}, error) {
 		return nil, err
 	}
 
-	return bson.M{"token": token}, nil
+	return token, nil
 }

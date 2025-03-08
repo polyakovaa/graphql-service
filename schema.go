@@ -1,6 +1,7 @@
 package main
 
 import (
+	"grphqlserver/middleware"
 	"grphqlserver/resolvers"
 
 	"github.com/graphql-go/graphql"
@@ -54,13 +55,13 @@ var User = graphql.NewObject(
 			"_id": &graphql.Field{
 				Type: ObjectID,
 			},
-			"firstName": &graphql.Field{
-				Type: graphql.String,
-			},
-			"lastName": &graphql.Field{
+			"userName": &graphql.Field{
 				Type: graphql.String,
 			},
 			"email": &graphql.Field{
+				Type: graphql.String,
+			},
+			"token": &graphql.Field{
 				Type: graphql.String,
 			},
 		},
@@ -203,16 +204,27 @@ func defineSchema() graphql.SchemaConfig {
 		Mutation: graphql.NewObject(graphql.ObjectConfig{
 			Name: "Mutation",
 			Fields: graphql.Fields{
-				"addUser": &graphql.Field{
-					Name:    "addUser",
-					Type:    User,
-					Resolve: resolvers.AddUserResolver,
+				"registerUser": &graphql.Field{
+					Name:    "registerUser",
+					Type:    graphql.String,
+					Resolve: resolvers.RegisterUserResolver,
 					Args: graphql.FieldConfigArgument{
 						"input": &graphql.ArgumentConfig{
 							Type: UserInput,
 						},
 					},
 				},
+				"loginUser": &graphql.Field{
+					Name:    "loginUser",
+					Type:    graphql.String,
+					Resolve: resolvers.LoginUserResolver,
+					Args: graphql.FieldConfigArgument{
+						"input": &graphql.ArgumentConfig{
+							Type: UserInput,
+						},
+					},
+				},
+
 				"addBook": &graphql.Field{
 					Name:    "addBook",
 					Type:    Book,
@@ -254,7 +266,7 @@ func defineSchema() graphql.SchemaConfig {
 							Type: ReviewInput,
 						},
 					},
-					Resolve: resolvers.AddReviewResolver,
+					Resolve: middleware.AuthMiddleware(resolvers.AddReviewResolver),
 				},
 				"updateReview": &graphql.Field{
 					Name: "updateReview",
