@@ -279,7 +279,7 @@ func defineSchema() graphql.SchemaConfig {
 							Type: ReviewInput,
 						},
 					},
-					Resolve: resolvers.UpdateReviewResolver,
+					Resolve: middleware.AuthMiddleware(resolvers.UpdateReviewResolver),
 				},
 
 				"deleteReview": &graphql.Field{
@@ -290,7 +290,7 @@ func defineSchema() graphql.SchemaConfig {
 							Type: ObjectID,
 						},
 					},
-					Resolve: resolvers.DeleteReviewResolver,
+					Resolve: middleware.AuthMiddleware(resolvers.DeleteReviewResolver),
 				},
 			},
 		}),

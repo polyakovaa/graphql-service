@@ -1,6 +1,7 @@
 package main
 
 import (
+	"grphqlserver/middleware"
 	"log"
 	"net/http"
 
@@ -21,7 +22,7 @@ func main() {
 		Playground: true,
 	})
 
-	http.Handle("/graphql", h)
+	http.Handle("/graphql", middleware.InjectHeadersMiddleware(h))
 
 	err = http.ListenAndServe(":8080", nil)
 	if err != nil {

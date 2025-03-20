@@ -51,10 +51,25 @@ func AddReviewResolver(p graphql.ResolveParams) (interface{}, error) {
 	defer cancel()
 	collection := ReviewCollection()
 
+	userIDStr, ok := p.Context.Value("userID").(string)
+	if !ok {
+		log.Println("Missing userID in context")
+		return nil, errors.New("unauthorized: missing user ID")
+	}
+	log.Println("Extracted userID:", userIDStr)
+
+	userID, err := primitive.ObjectIDFromHex(userIDStr)
+	if err != nil {
+		log.Println("Invalid userID format:", userIDStr)
+		return nil, errors.New("invalid user ID format")
+	}
+
 	input, ok := p.Args["input"].(map[string]interface{})
 	if !ok {
 		return nil, errors.New("invalid input data")
 	}
+
+	input["userID"] = userID
 
 	if _, exists := input["date"]; !exists {
 		input["date"] = time.Now()
@@ -65,19 +80,33 @@ func AddReviewResolver(p graphql.ResolveParams) (interface{}, error) {
 		log.Print("Error inserting review:", err)
 		return nil, err
 	}
-
 	input["_id"] = res.InsertedID
 	return input, nil
 }
 
 func DeleteReviewResolver(p graphql.ResolveParams) (interface{}, error) {
-	collection := ReviewCollection()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	collection := ReviewCollection()
+
+	userID, ok := p.Context.Value("userID").(string)
+	if !ok {
+		return nil, errors.New("unauthorized: missing user ID")
+	}
 
 	id, ok := p.Args["_id"].(primitive.ObjectID)
 	if !ok {
 		return nil, errors.New("missing review ID")
+	}
+
+	var review bson.M
+	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&review)
+	if err != nil {
+		return nil, errors.New("review not found")
+	}
+
+	if review["userID"] != userID {
+		return nil, errors.New("unauthorized: you can only delete your own reviews")
 	}
 
 	result, err := collection.DeleteOne(ctx, bson.M{"_id": id})
@@ -94,13 +123,28 @@ func DeleteReviewResolver(p graphql.ResolveParams) (interface{}, error) {
 }
 
 func UpdateReviewResolver(p graphql.ResolveParams) (interface{}, error) {
-	collection := ReviewCollection()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	collection := ReviewCollection()
+
+	userID, ok := p.Context.Value("userID").(string)
+	if !ok {
+		return nil, errors.New("unauthorized: missing user ID")
+	}
 
 	id, ok := p.Args["_id"].(primitive.ObjectID)
 	if !ok {
-		return nil, errors.New("missing or invalid reviex ID")
+		return nil, errors.New("missing or invalid review ID")
+	}
+
+	var review bson.M
+	err := collection.FindOne(ctx, bson.M{"_id": id}).Decode(&review)
+	if err != nil {
+		return nil, errors.New("review not found")
+	}
+
+	if review["userID"] != userID {
+		return nil, errors.New("unauthorized: you can only edit your own reviews")
 	}
 
 	input, ok := p.Args["input"].(map[string]interface{})
